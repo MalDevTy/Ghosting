@@ -19,7 +19,6 @@ This PoC demonstrates the core steps involved in:
 
 - Windows 10 (x64)
 - Visual Studio or Mingw for compilation
-- Administrator privileges
 
 ## 🔧 Build
 - check cmake config
